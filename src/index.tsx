@@ -24,6 +24,6 @@ const VisionCameraPluginAnpr = VisionCameraPluginAnprModule
       }
     );
 
-export function multiply(a: number, b: number): Promise<number> {
-  return VisionCameraPluginAnpr.multiply(a, b);
+export function installPlugins(): void {
+  return VisionCameraPluginAnpr.installPlugins();
 }

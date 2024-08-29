@@ -1,8 +1,12 @@
 #ifndef VISIONCAMERAPLUGINANPR_H
 #define VISIONCAMERAPLUGINANPR_H
 
+#include <jsi/jsilib.h>
+#include <jsi/jsi.h>
+
 namespace visioncamerapluginanpr {
-  double multiply(double a, double b);
+  void installPlugins(facebook::jsi::Runtime& jsiRuntime);
+  void setAlprPaths(const char* configPath, const char* runtimePath, const char* platePath);
 }
 
 #endif /* VISIONCAMERAPLUGINANPR_H */

@@ -14,6 +14,24 @@ buildscript {
   }
 }
 
+subprojects {
+  afterEvaluate { project ->
+      if (project.hasProperty("android")) {
+          project.android {
+              defaultConfig {
+                  minSdkVersion = 30
+              }
+          }
+      }
+    }
+}
+
+task printNdkVersion {
+    doLast {
+        println "Library NDK Version: ${android.ndkVersion}"
+    }
+}
+
 def reactNativeArchitectures() {
   def value = rootProject.getProperties().get("reactNativeArchitectures")
   return value ? value.split(",") : ["armeabi-v7a", "x86", "x86_64", "arm64-v8a"]
@@ -54,24 +72,43 @@ android {
     sourceSets {
       main {
         manifest.srcFile "src/main/AndroidManifestNew.xml"
+        assets.srcDirs += ['src/main/shaders']
       }
     }
   }
 
-  ndkVersion getExtOrDefault("ndkVersion")
-  compileSdkVersion getExtOrIntegerDefault("compileSdkVersion")
+  buildFeatures {
+    prefab true
+  }
+
+  ndkVersion "27.0.11902837"
+  compileSdkVersion 34
 
   defaultConfig {
-    minSdkVersion getExtOrIntegerDefault("minSdkVersion")
-    targetSdkVersion getExtOrIntegerDefault("targetSdkVersion")
+    minSdkVersion 30
+    targetSdkVersion 30
     buildConfigField "boolean", "IS_NEW_ARCHITECTURE_ENABLED", isNewArchitectureEnabled().toString()
 
     externalNativeBuild {
-      cmake {
-        cppFlags "-O2 -frtti -fexceptions -Wall -fstack-protector-all"
-        abiFilters (*reactNativeArchitectures())
-      }
+        cmake {
+            cppFlags "-O2 -frtti -fexceptions -Wall -fstack-protector-all -std=c++17"
+            abiFilters (*reactNativeArchitectures())
+            arguments "-DANDROID_STL=c++_shared", "-DANDROID_PLATFORM=android-30"
+        }
     }
+  }
+  
+  packagingOptions {
+    excludes = [
+      "META-INF",
+      "META-INF/**",
+      "**/libc++_shared.so",
+      "**/libfbjni.so",
+      "**/libjsi.so",
+      "**/libreactnativejni.so",
+      "**/libturbomodulejsijni.so",
+      "**/libreact_nativemodule_core.so",
+    ]
   }
 
   externalNativeBuild {
@@ -114,6 +151,29 @@ android {
   }
 }
 
+task compileShaders {
+    doLast {
+        file('src/main/shaders').listFiles().each { File shader ->
+            if (shader.name.endsWith('.comp')) {
+                def outputFilename = shader.name.replace('.comp', '.spv') 
+                exec {
+                    executable "${android.ndkDirectory}\\shader-tools\\windows-x86_64\\glslc"
+                    args shader.absolutePath, '-o', "${shader.parent}\\${outputFilename}"
+                }
+            }
+        }
+    }
+}
+preBuild.dependsOn compileShaders
+
+task copyShaders(type: Copy) {
+    from 'src/main/shaders'
+    into 'build/shaders'
+    include '*.spv'
+}
+preBuild.dependsOn copyShaders
+
+
 repositories {
   mavenCentral()
   google()
@@ -127,6 +187,9 @@ dependencies {
   //noinspection GradleDynamicVersion
   implementation "com.facebook.react:react-native:+"
   implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+  api project(":react-native-vision-camera")
+  // api project(':react-native-worklets-core')
+  
 }
 
 if (isNewArchitectureEnabled()) {

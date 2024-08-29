@@ -1,18 +1,54 @@
-import { useState, useEffect } from 'react';
 import { StyleSheet, View, Text } from 'react-native';
-import { multiply } from 'vision-camera-plugin-anpr';
+import { installPlugins } from 'vision-camera-plugin-anpr';
+import {
+  Camera,
+  useCameraPermission,
+  useCameraDevice,
+  useFrameProcessor,
+  // useCameraFormat,
+  runAsync,
+} from 'react-native-vision-camera';
+import { useEffect } from 'react';
+
+installPlugins();
+const recognisePlateProcessor = global.recognisePlateProcessor;
 
 export default function App() {
-  const [result, setResult] = useState<number | undefined>();
+  const { hasPermission, requestPermission } = useCameraPermission();
+  const device = useCameraDevice('back');
+
+  // const format = useCameraFormat(device, [
+  //   { videoResolution: { width: 640, height: 480 } },
+  // ]);
 
   useEffect(() => {
-    multiply(3, 7).then(setResult);
+    if (!hasPermission) {
+      requestPermission();
+    }
+  }, [hasPermission, requestPermission]);
+
+  const frameProcessor = useFrameProcessor((frame) => {
+    'worklet';
+    runAsync(frame, () => {
+      'worklet';
+      console.log(JSON.parse(recognisePlateProcessor(frame)));
+    });
   }, []);
 
+  if (device == null)
+    return (
+      <View style={styles.container}>
+        <Text>No device</Text>
+      </View>
+    );
   return (
-    <View style={styles.container}>
-      <Text>Result: {result}</Text>
-    </View>
+    <Camera
+      style={StyleSheet.absoluteFill}
+      device={device}
+      // format={format}
+      isActive={true}
+      frameProcessor={frameProcessor}
+    />
   );
 }
 
