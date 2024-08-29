@@ -1,18 +1,10 @@
 #version 450
 
-layout (local_size_x = 16, local_size_y = 16) in;
+layout(local_size_x = 16, local_size_y = 16) in;
 
 layout(std430, binding = 0) buffer YPlane {
     uint data[];
 } yPlane;
-
-layout(std430, binding = 1) buffer UPlane {
-    uint data[];
-} uPlane;
-
-layout(std430, binding = 2) buffer VPlane {
-    uint data[];
-} vPlane;
 
 layout(std430, binding = 3) buffer OutputBuffer {
     uint data[];
@@ -21,35 +13,33 @@ layout(std430, binding = 3) buffer OutputBuffer {
 layout(push_constant) uniform PushConstants {
     uint width;
     uint height;
-    uint stride;
+    uint yStride;
 } pushConstants;
 
 void main() {
     uvec2 gid = gl_GlobalInvocationID.xy;
+
+    // Ensure we're within the bounds of the image
     if (gid.x >= pushConstants.width || gid.y >= pushConstants.height) return;
 
-    uint uvStride = pushConstants.stride / 2;
+    // Calculate the index into the Y plane
+    uint yIndex = gid.y * pushConstants.yStride + gid.x;
 
-    uint yIndex = gid.y * pushConstants.stride + gid.x;
-    uint uvIndex = (gid.y / 2) * uvStride + (gid.x / 2);
+    // Fetch the Y (luminance) value from the Y plane
+    uint packedYValue = yPlane.data[yIndex / 4];
+    uint shift = (yIndex % 4) * 8;
+    uint yValue = (packedYValue >> shift) & 0xFF;
 
-    uint yValue = yPlane.data[yIndex];
-    uint uValue = uPlane.data[uvIndex];
-    uint vValue = vPlane.data[uvIndex];
+    // Calculate the index in the output buffer
+    uint outputIndex = gid.y * pushConstants.width + gid.x;
 
-    // Simple YUV to RGB conversion
-    float y = float(yValue) / 255.0;
-    float u = float(uValue) / 255.0 - 0.5;
-    float v = float(vValue) / 255.0 - 0.5;
+    // Pack the Y value into the correct byte of the output uint
+    uint outputPackedIndex = outputIndex / 4;
+    uint outputShift = (outputIndex % 4) * 8;
+    uint outputMask = 0xFF << outputShift;
+    uint outputValue = (yValue << outputShift) & outputMask;
 
-    float r = y + 1.402 * v;
-    float g = y - 0.344 * u - 0.714 * v;
-    float b = y + 1.772 * u;
-
-    // Convert to grayscale
-    float gray = 0.299 * r + 0.587 * g + 0.114 * b;
-
-    // Store the result
-    uint outIndex = gid.y * pushConstants.width + gid.x;
-    outputBuffer.data[outIndex] = uint(gray * 255.0);
+    // Use atomic operations to safely write to the packed uint in the output buffer
+    atomicAnd(outputBuffer.data[outputPackedIndex], ~outputMask);
+    atomicOr(outputBuffer.data[outputPackedIndex], outputValue);
 }
