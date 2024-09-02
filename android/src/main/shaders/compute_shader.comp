@@ -13,7 +13,7 @@ layout(std430, binding = 3) buffer OutputBuffer {
 layout(push_constant) uniform PushConstants {
     uint width;
     uint height;
-    uint yStride;
+    uint stride;
 } pushConstants;
 
 void main() {
@@ -23,7 +23,7 @@ void main() {
     if (gid.x >= pushConstants.width || gid.y >= pushConstants.height) return;
 
     // Calculate the index into the Y plane
-    uint yIndex = gid.y * pushConstants.yStride + gid.x;
+    uint yIndex = gid.y * pushConstants.stride + gid.x;
 
     // Fetch the Y (luminance) value from the Y plane
     uint packedYValue = yPlane.data[yIndex / 4];

@@ -64,8 +64,8 @@ namespace vulkanProcessor {
                 LOGI("Input buffer %d size: %zu", i, memRequirements.size);
             }
             
-            VkBuffer outputBuffer = createBuffer(width * height, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-            LOGI("Output buffer created successfully. Size: %u", width * height);
+            VkBuffer outputBuffer = createBuffer(stride * height, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+            LOGI("Output buffer created successfully. Size: %u", stride * height);
 
             updateDescriptorSet(inputBuffers[0], inputBuffers[1], inputBuffers[2], outputBuffer);
             LOGI("Descriptor set updated successfully");
@@ -444,9 +444,9 @@ namespace vulkanProcessor {
 
             std::array<VkBuffer, 3> buffers;
             std::array<VkDeviceSize, 3> planeSizes = {
-                bufferDesc.width * bufferDesc.height,
-                bufferDesc.width * bufferDesc.height / 4,
-                bufferDesc.width * bufferDesc.height / 4
+                bufferDesc.stride * bufferDesc.height,
+                (bufferDesc.stride / 2) * (bufferDesc.height / 2),
+                (bufferDesc.stride / 2) * (bufferDesc.height / 2),
             };
 
             for (int i = 0; i < 3; ++i) {

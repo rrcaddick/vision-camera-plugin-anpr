@@ -31,6 +31,7 @@ namespace visioncamerapluginanpr {
   static std::unique_ptr<alpr::Alpr> g_openalprInstance = nullptr;
   static std::mutex g_openalprMutex;
   static JavaVM* g_jvm = nullptr;
+  static int imgCount = 0;
 
 
   void setAlprPaths(const char* configPath, const char* runtimePath, const char* platePath) {
@@ -141,14 +142,26 @@ namespace visioncamerapluginanpr {
 
       // Create an OpenCV image from the processed data (grayscale)
       cv::Mat image(height, width, CV_8UC1, processedImage.data());
+   
       // cv::Mat image(width, height, CV_8UC1, processedImage.data());
 
       std::string downloadsPath = getDownloadsPath();
-      if (!downloadsPath.empty()) {
-          cv::imwrite(downloadsPath + "/vulkan_image.png", image);
-          LOGI("Debug images saved to %s", downloadsPath.c_str());
+      if(imgCount <= 20) {
+        if (!downloadsPath.empty()) {
+            std::string imgNumber;
+            if(imgCount < 10) {
+                imgNumber = "0" + std::to_string(imgCount);
+            } else {
+                imgNumber = std::to_string(imgCount);
+            }
+            cv::imwrite(downloadsPath + "/vulkan_image_" + imgNumber + ".png", image);
+            LOGI("Debug images saved to %s", downloadsPath.c_str());
+        } else {
+            LOGE("Failed to get downloads path");
+        }
+        imgCount++;
       } else {
-          LOGE("Failed to get downloads path");
+        throw std::runtime_error("Debug images limit reached");
       }
 
       std::string jsonData = "{}";
@@ -156,10 +169,10 @@ namespace visioncamerapluginanpr {
       LOGI("Converted to char properly");
       try {
         // Use the processed image with OpenALPR
-        LOGI("Attempting to recognize plate...");
-        std::vector<alpr::AlprRegionOfInterest> regionsOfInterest;
-        alpr::AlprResults results = g_openalprInstance->recognize(processedImage.data(), 1, width, height, regionsOfInterest);
-        jsonData = alpr::Alpr::toJson(results);
+        // LOGI("Attempting to recognize plate...");
+        // std::vector<alpr::AlprRegionOfInterest> regionsOfInterest;
+        // alpr::AlprResults results = g_openalprInstance->recognize(processedImage.data(), 1, width, height, regionsOfInterest);
+        // jsonData = alpr::Alpr::toJson(results);
       } catch (const std::exception& e) {
         LOGE("Error in recognisePlate: %s", e.what());
       }
