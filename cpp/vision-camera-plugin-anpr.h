@@ -6,7 +6,7 @@
 
 namespace visioncamerapluginanpr {
   void installPlugins(facebook::jsi::Runtime& jsiRuntime);
-  void setAlprPaths(const char* configPath, const char* runtimePath, const char* platePath);
+  void setAlprPaths(const char* configPath, const char* runtimePath);
 }
 
 #endif /* VISIONCAMERAPLUGINANPR_H */

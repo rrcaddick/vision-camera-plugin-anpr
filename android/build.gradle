@@ -151,28 +151,6 @@ android {
   }
 }
 
-task compileShaders {
-    doLast {
-        file('src/main/shaders').listFiles().each { File shader ->
-            if (shader.name.endsWith('.comp')) {
-                def outputFilename = shader.name.replace('.comp', '.spv') 
-                exec {
-                    executable "${android.ndkDirectory}\\shader-tools\\windows-x86_64\\glslc"
-                    args shader.absolutePath, '-o', "${shader.parent}\\${outputFilename}"
-                }
-            }
-        }
-    }
-}
-preBuild.dependsOn compileShaders
-
-task copyShaders(type: Copy) {
-    from 'src/main/shaders'
-    into 'build/shaders'
-    include '*.spv'
-}
-preBuild.dependsOn copyShaders
-
 
 repositories {
   mavenCentral()
@@ -188,7 +166,6 @@ dependencies {
   implementation "com.facebook.react:react-native:+"
   implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
   api project(":react-native-vision-camera")
-  // api project(':react-native-worklets-core')
   
 }
 

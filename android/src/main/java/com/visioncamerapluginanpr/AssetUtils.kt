@@ -34,22 +34,6 @@ object AssetUtils {
     }
   }
 
-  @JvmStatic
-  fun copyShader(context: Context) {
-    Log.d("ReactNative", "Starting shader copy")
-    val shaderInputStream = context.assets.open("shaders/compute_shader.comp.spv")
-    val shaderDir = File(context.filesDir, "shaders")
-    shaderDir.mkdirs()
-    val shaderFile = File(shaderDir, "compute.spv")
-    shaderFile.outputStream().use { output ->
-      shaderInputStream.copyTo(output)
-    }
-    Log.d("ReactNative", "Finished shader copy")
-    Log.d("ReactNative", "Shader copied to: ${shaderFile.absolutePath}")
-    Log.d("ReactNative", "Shader file exists: ${shaderFile.exists()}")
-    Log.d("ReactNative", "Shader file size: ${shaderFile.length()} bytes")
-  }
-
   // Helper method to copy a single asset file to the specified destination
   private fun copyAssetFile(context: Context, assetFileName: String, destination: File) {
     try {

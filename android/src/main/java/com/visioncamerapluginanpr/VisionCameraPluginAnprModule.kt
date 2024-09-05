@@ -25,7 +25,7 @@ class VisionCameraPluginAnprModule(reactContext: ReactApplicationContext) : Reac
     external fun nativeInstallPlugins(jsi: Long)
 
     @JvmStatic
-    external fun nativeAddAssetPaths(configFilePath: String, runtimeDirPath: String, plateFilePath: String)
+    external fun nativeAddAssetPaths(configFilePath: String, runtimeDirPath: String)
   }
 
   override fun getName(): String {
@@ -38,18 +38,12 @@ class VisionCameraPluginAnprModule(reactContext: ReactApplicationContext) : Reac
       // Copies conf and runtime_data required by openalpr
       copyAssetsToDataDirectory()
 
-      // Copies the shader
-      AssetUtils.copyShader(getReactApplicationContext())
-
       // Calculate the paths
       val configFilePath = File(getReactApplicationContext().filesDir, "openalpr/openalpr.conf").absolutePath
       val runtimeDirPath = File(getReactApplicationContext().filesDir, "openalpr/runtime_data").absolutePath
-      val plateFilePath = File(getReactApplicationContext().filesDir, "openalpr/no-plate-large.jpg").absolutePath
-
-      Log.d("ReactNative", "Initialize called")
       
       // Call the native method to pass the paths
-      nativeAddAssetPaths(configFilePath, runtimeDirPath, plateFilePath)
+      nativeAddAssetPaths(configFilePath, runtimeDirPath)
   }
 
   @ReactMethod(isBlockingSynchronousMethod = true)

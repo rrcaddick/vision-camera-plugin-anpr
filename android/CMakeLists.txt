@@ -13,12 +13,10 @@ set(OPENCV_LIBS_DIR ${LIBS_DIR}/opencv)
 find_package(ReactAndroid REQUIRED CONFIG)
 find_package(fbjni REQUIRED CONFIG)
 find_package(react-native-vision-camera REQUIRED CONFIG)
-find_package(Vulkan REQUIRED)
 
 # Add shared libraries
 add_library(${CMAKE_PROJECT_NAME} SHARED
   ${SRC_DIR}/vision-camera-plugin-anpr.cpp
-  ${SRC_DIR}/VulkanProcessor.cpp
   cpp-adapter.cpp
 )
 
@@ -46,7 +44,7 @@ endfunction()
 add_static_library(openalpr ${LIBS_DIR})
 add_static_library(support ${LIBS_DIR})
 
-# Add 3rdparty static libraries
+# Add 3rdparty OpenvCV static libraries
 add_static_library(libjasper ${OPENCV_LIBS_DIR}/3rdparty)
 add_static_library(tegra_hal ${OPENCV_LIBS_DIR}/3rdparty)
 add_static_library(ittnotify ${OPENCV_LIBS_DIR}/3rdparty)
@@ -74,7 +72,6 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
   ${LIBS_DIR}/include/openalpr
   ${LIBS_DIR}/include/tesseract
   ${LIBS_DIR}/include/opencv
-  ${VULKAN_INCLUDE_DIRS}
 )
 
 target_link_libraries(${CMAKE_PROJECT_NAME}
@@ -82,7 +79,6 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
   ReactAndroid::jsi
   fbjni::fbjni
   react-native-vision-camera::VisionCamera
-  Vulkan::Vulkan
 
   # OpenCV core libraries
   opencv_core
