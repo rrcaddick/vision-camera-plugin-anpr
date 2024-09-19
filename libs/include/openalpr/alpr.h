@@ -56,7 +56,6 @@ namespace alpr
     bool matches_template;
   };
   
-
   class AlprRegionOfInterest
   {
   public:
@@ -126,7 +125,6 @@ namespace alpr
       std::vector<AlprRegionOfInterest> regionsOfInterest;
 
   };
-
 
   class Config;
   class AlprImpl;

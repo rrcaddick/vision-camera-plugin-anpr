@@ -1,3 +1,6 @@
+import java.nio.file.Paths
+import org.gradle.api.GradleException
+
 buildscript {
   // Buildscript is evaluated before everything else so we can't use getExtOrDefault
   def kotlin_version = rootProject.ext.has("kotlinVersion") ? rootProject.ext.get("kotlinVersion") : project.properties["VisionCameraPluginAnpr_kotlinVersion"]
@@ -65,6 +68,39 @@ def supportsNamespace() {
   return (major == 7 && minor >= 3) || major >= 8
 }
 
+// Get the path to the example project assets if it exists
+static def findExampleAssetsDir(baseDir) {
+    def currentDir = baseDir.toPath().normalize()
+    def exampleAssetsPath = Paths.get(currentDir.parent.toString(), "example", "assets", "openalpr")
+    
+    if (exampleAssetsPath.toFile().isDirectory()) {
+        return exampleAssetsPath.toString()
+    }
+    
+    return null
+}
+
+// Check for custom react native assets
+static def findReactNativeAssetsDir(baseDir) {
+    def basePath = baseDir.toPath().normalize()
+    
+    while (basePath != null) {
+        def packageJsonPath = Paths.get(basePath.toString(), "package.json")
+        def assetsPath = Paths.get(basePath.toString(), "assets", "openalpr")
+              
+        if (packageJsonPath.toFile().exists() && assetsPath.toFile().isDirectory()) {
+            return assetsPath.toString()
+        }
+        
+        basePath = basePath.getParent()
+    }
+    
+    // If we haven't found the assets, check for the example assets 
+    return findExampleAssetsDir(baseDir)
+}
+
+def assetsPath = findReactNativeAssetsDir(project.projectDir)
+
 android {
   if (supportsNamespace()) {
     namespace "com.visioncamerapluginanpr"
@@ -72,7 +108,9 @@ android {
     sourceSets {
       main {
         manifest.srcFile "src/main/AndroidManifestNew.xml"
-        assets.srcDirs += ['src/main/shaders']
+        if (assetsPath != null) {
+          assets.srcDirs += [assetsPath]
+        }
       }
     }
   }

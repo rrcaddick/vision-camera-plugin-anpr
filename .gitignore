@@ -79,3 +79,7 @@ lib/
 
 # compiled shaders
 *.spv
+
+example/assets
+
+repopack*.txt

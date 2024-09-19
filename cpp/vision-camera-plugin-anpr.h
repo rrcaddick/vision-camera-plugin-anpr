@@ -5,7 +5,7 @@
 #include <jsi/jsi.h>
 
 namespace visioncamerapluginanpr {
-  void installPlugins(facebook::jsi::Runtime& jsiRuntime);
+  void installPlugin(facebook::jsi::Runtime& jsiRuntime);
   void setAlprPaths(const char* configPath, const char* runtimePath);
 }
 

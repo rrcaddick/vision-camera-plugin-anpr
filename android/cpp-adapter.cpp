@@ -7,11 +7,11 @@ using namespace facebook;
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_visioncamerapluginanpr_VisionCameraPluginAnprModule_nativeInstallPlugins(JNIEnv *env, jclass type, jlong jsi) {
+Java_com_visioncamerapluginanpr_VisionCameraPluginAnprModule_nativeInstallPlugin(JNIEnv *env, jclass type, jlong jsi) {
     auto runtime = reinterpret_cast<facebook::jsi::Runtime *>(jsi);
 
     if (runtime) {
-        visioncamerapluginanpr::installPlugins(*runtime);
+        visioncamerapluginanpr::installPlugin(*runtime);
     }
 }
 

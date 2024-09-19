@@ -27,13 +27,13 @@ namespace visioncamerapluginanpr {
     g_runtimePath = runtimePath;
   }
 
-  void initializeOpenALPR() {
+  void initializeOpenALPR(std::string country) {
     std::lock_guard<std::mutex> lock(g_openalprMutex);
     if (!g_openalprInstance) {
       LOGI("Initializing OpenALPR...");
-      g_openalprInstance = std::make_unique<alpr::Alpr>("eu", g_configPath, g_runtimePath);
-      g_openalprInstance->setTopN(10);
-      g_openalprInstance->setDefaultRegion("eu");
+      g_openalprInstance = std::make_unique<alpr::Alpr>(country, g_configPath, g_runtimePath);
+      g_openalprInstance->setTopN(20);
+      g_openalprInstance->setDefaultRegion("za");
 
       if (!g_openalprInstance->isLoaded()) {
         LOGE("Error loading OpenALPR library");
@@ -79,35 +79,63 @@ namespace visioncamerapluginanpr {
       }
   }
 
-  void installPlugins(jsi::Runtime& runtime) {
-    LOGI("Installing plugins...");
-    initializeOpenALPR();
-
-    auto recognisePlate = [](jsi::Runtime& runtime, const jsi::Value& thisArg, const jsi::Value* args, size_t count) -> jsi::Value {
-      try {
-        if (count < 1 || !args[0].isObject()) {
-          LOGE("Invalid arguments");
-          throw jsi::JSError(runtime, "Invalid arguments");
-        }
-
-        auto frame = args[0].asObject(runtime).asHostObject<FrameHostObject>(runtime);
-
-        int height = frame->get(runtime, jsi::PropNameID::forUtf8(runtime, "height")).asNumber();
-        int width = frame->get(runtime, jsi::PropNameID::forUtf8(runtime, "width")).asNumber();
-       
-        
-        std::string jsonResult = processImage(getHardwareBuffer(runtime, frame), width, height);
-        return jsi::String::createFromUtf8(runtime, jsonResult);
-      } catch (const std::exception& e) {
-        LOGE("Error in recognisePlate: %s", e.what());
-        throw jsi::JSError(runtime, std::string("Error in recognisePlate: ") + e.what());
+  auto recogniseFrame = [](jsi::Runtime& runtime, const jsi::Value& thisArg, const jsi::Value* args, size_t count) -> jsi::Value {
+    try {
+      if (count < 1 || !args[0].isObject()) {
+        LOGE("Invalid arguments");
+        throw jsi::JSError(runtime, "Invalid arguments");
       }
-    };
 
-    LOGI("Creating JSI function");
-    auto jsiFunc = jsi::Function::createFromHostFunction(runtime, jsi::PropNameID::forUtf8(runtime, "frameProcessor"), 1, recognisePlate);
-    LOGI("Setting global property");
-    runtime.global().setProperty(runtime, "recognisePlateProcessor", jsiFunc);
+      auto frame = args[0].asObject(runtime).asHostObject<FrameHostObject>(runtime);
+
+      int height = frame->get(runtime, jsi::PropNameID::forUtf8(runtime, "height")).asNumber();
+      int width = frame->get(runtime, jsi::PropNameID::forUtf8(runtime, "width")).asNumber();
+      
+      
+      std::string jsonResult = processImage(getHardwareBuffer(runtime, frame), width, height);
+      return jsi::String::createFromUtf8(runtime, jsonResult);
+    } catch (const std::exception& e) {
+      LOGE("Error in recogniseFrame: %s", e.what());
+      throw jsi::JSError(runtime, std::string("Error in recogniseFrame: ") + e.what());
+    }
+  };
+
+  auto initializeANPR  = [](jsi::Runtime& runtime, const jsi::Value& thisArg, const jsi::Value* args, size_t count) -> jsi::Value {
+    try {
+      if (count < 1 || !args[0].isString()) {
+        LOGE("Invalid arguments");
+        throw jsi::JSError(runtime, "Invalid arguments");
+      }
+      std::string country = args[0].getString(runtime).utf8(runtime);
+      initializeOpenALPR(country);
+
+      // JSI requires a return value - undefined to specify void
+      return jsi::Value::undefined();
+    } catch (const std::exception& e) {
+      LOGE("Error in initializeANPR: %s", e.what());
+      throw jsi::JSError(runtime, std::string("Error in initializeANPR: ") + e.what());
+    }
+  };
+
+  void installPlugin(jsi::Runtime& runtime) {
+    bool isInstalled = runtime.global().hasProperty(runtime, "initializeANPR");
+
+    if(isInstalled) {
+      LOGI("Plugin already installed...");
+      return;
+    }
+    
+    LOGI("Installing plugin...");
+
+    // Add initializeANPR
+    auto initializeANPRFunc = jsi::Function::createFromHostFunction(runtime, jsi::PropNameID::forUtf8(runtime, "initializeANPR"), 1, initializeANPR);
+
+    runtime.global().setProperty(runtime, "initializeANPR", initializeANPRFunc);
+
+    // Add recogniseFrame
+    auto recogniseFrameFunc = jsi::Function::createFromHostFunction(runtime, jsi::PropNameID::forUtf8(runtime, "recogniseFrame"), 1, recogniseFrame);
+
+    runtime.global().setProperty(runtime, "recogniseFrame", recogniseFrameFunc);
     LOGI("Plugin installation complete");
   }
 }

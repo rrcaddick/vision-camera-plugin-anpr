@@ -7,6 +7,7 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 
 import java.io.File
+import java.io.IOException
 
 class VisionCameraPluginAnprModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
   companion object {
@@ -22,7 +23,7 @@ class VisionCameraPluginAnprModule(reactContext: ReactApplicationContext) : Reac
 
     // Adds frame processor plugin to JS global variables
     @JvmStatic
-    external fun nativeInstallPlugins(jsi: Long)
+    external fun nativeInstallPlugin(jsi: Long)
 
     @JvmStatic
     external fun nativeAddAssetPaths(configFilePath: String, runtimeDirPath: String)
@@ -35,6 +36,8 @@ class VisionCameraPluginAnprModule(reactContext: ReactApplicationContext) : Reac
   override fun initialize() {
       super.initialize()
 
+      Log.d("ReactNative", "Starting initialization")
+
       // Copies conf and runtime_data required by openalpr
       copyAssetsToDataDirectory()
 
@@ -44,25 +47,28 @@ class VisionCameraPluginAnprModule(reactContext: ReactApplicationContext) : Reac
       
       // Call the native method to pass the paths
       nativeAddAssetPaths(configFilePath, runtimeDirPath)
+
+      Log.d("ReactNative", "Initialization complete")
   }
 
-  @ReactMethod(isBlockingSynchronousMethod = true)
-  fun installPlugins() {
-    val jsContext: JavaScriptContextHolder? = getReactApplicationContext().javaScriptContextHolder
-
-    if (jsContext != null && jsContext.get() != 0L) {
-      nativeInstallPlugins(jsContext.get())
-    } else {
-      Log.e("ReactNative", "JSI Runtime is not available in debug mode")
-    }
-  }
 
   private fun copyAssetsToDataDirectory() {
     val appDir = File(getReactApplicationContext().filesDir, "openalpr")
     if (!appDir.exists()) {
-        appDir.mkdir()
+      appDir.mkdir()
     }
+    
+    AssetUtils.copyAssets(getReactApplicationContext(), appDir)
+  }
 
-    AssetUtils.copyAssets(getReactApplicationContext(), "", appDir)
+  @ReactMethod(isBlockingSynchronousMethod = true)
+  fun installPlugin() {
+    val jsContext: JavaScriptContextHolder? = getReactApplicationContext().javaScriptContextHolder
+
+    if (jsContext != null && jsContext.get() != 0L) {
+      nativeInstallPlugin(jsContext.get())
+    } else {
+      Log.e("ReactNative", "JSI Runtime is not available in debug mode")
+    }
   }
 }
