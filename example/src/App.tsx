@@ -12,12 +12,24 @@ import { useEffect } from 'react';
 export default function App() {
   const { hasPermission, requestPermission } = useCameraPermission();
   const device = useCameraDevice('back');
-  const { recogniseFrame } = useALPR();
+  const {
+    recogniseFrame,
+    setTopN,
+    setCountry,
+    setDefaultRegion,
+    setDetectRegion,
+    setPrewarp,
+  } = useALPR();
 
   useEffect(() => {
     if (!hasPermission) {
       requestPermission();
     }
+    setTopN(5);
+    setCountry('eu');
+    setDefaultRegion('za');
+    setDetectRegion(false);
+    setPrewarp('planar,1280,720,0.8,0,0,0,0');
   }, [hasPermission, requestPermission]);
 
   const frameProcessor = useFrameProcessor((frame) => {
@@ -38,7 +50,6 @@ export default function App() {
     <Camera
       style={StyleSheet.absoluteFill}
       device={device}
-      // format={format}
       isActive={true}
       frameProcessor={frameProcessor}
     />

@@ -10,9 +10,9 @@ export interface AlprRegionOfInterest {
 // global.d.ts
 declare global {
   function initializeANPR(
-    country: string
-    // topN: number,
-    // region?: string
+    country: string,
+    topN?: number,
+    region?: string
   ): void;
   function setCountry(country: string): void;
   function setPrewarp(prewarpConfig: string): void;

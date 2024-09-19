@@ -4,7 +4,7 @@ import { name as appName } from './app.json';
 import { ALPRProvider } from 'vision-camera-plugin-anpr';
 
 const Root = () => (
-  <ALPRProvider country="eu">
+  <ALPRProvider config={{ country: 'us', topN: 10, region: 'ps' }}>
     <App />
   </ALPRProvider>
 );

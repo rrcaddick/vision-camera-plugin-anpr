@@ -22,18 +22,35 @@ namespace visioncamerapluginanpr {
   static std::unique_ptr<alpr::Alpr> g_openalprInstance = nullptr;
   static std::mutex g_openalprMutex;
 
+  uint8_t* getPixelData(jsi::Runtime& runtime, const jsi::Value& arg) {
+    if (!arg.isObject() || !arg.asObject(runtime).isArrayBuffer(runtime)) {
+      throw jsi::JSError(runtime, "Argument is not an ArrayBuffer");
+    }
+
+    // Get the ArrayBuffer and retrieve the data
+    auto arrayBuffer = arg.asObject(runtime).getArrayBuffer(runtime);
+    return static_cast<uint8_t*>(arrayBuffer.data(runtime));
+  }
+
   void setAlprPaths(const char* configPath, const char* runtimePath) {
     g_configPath = configPath;
     g_runtimePath = runtimePath;
   }
 
-  void initializeOpenALPR(std::string country) {
+  void initializeOpenALPR(std::string country, int topN, std::string region) {
     std::lock_guard<std::mutex> lock(g_openalprMutex);
     if (!g_openalprInstance) {
       LOGI("Initializing OpenALPR...");
       g_openalprInstance = std::make_unique<alpr::Alpr>(country, g_configPath, g_runtimePath);
-      g_openalprInstance->setTopN(20);
-      g_openalprInstance->setDefaultRegion("za");
+
+      if(topN > 0) {
+        g_openalprInstance->setTopN(topN);
+      }
+
+      if(!region.empty()) {
+        LOGI("Setting region to %s", region.c_str());
+        g_openalprInstance->setDefaultRegion(region);
+      }
 
       if (!g_openalprInstance->isLoaded()) {
         LOGE("Error loading OpenALPR library");
@@ -79,6 +96,178 @@ namespace visioncamerapluginanpr {
       }
   }
 
+  auto initializeANPR  = [](jsi::Runtime& runtime, const jsi::Value& thisArg, const jsi::Value* args, size_t count) -> jsi::Value {
+    try {
+      if (count < 1 || !args[0].isString()) {
+        LOGE("Invalid arguments");
+        throw jsi::JSError(runtime, "Invalid arguments");
+      }
+
+      std::string country = args[0].getString(runtime).utf8(runtime);
+      
+      int topN = 0; 
+      std::string region = "";
+
+      if (count > 1 && args[1].isNumber()) {
+        topN = args[1].asNumber();
+      }
+
+      if (count > 2 && args[2].isString()) {
+        region = args[2].getString(runtime).utf8(runtime);
+      }
+
+      initializeOpenALPR(country, topN, region);
+
+      // JSI requires a return value - undefined to specify void
+      return jsi::Value::undefined();
+    } catch (const std::exception& e) {
+      LOGE("Error in initializeANPR: %s", e.what());
+      throw jsi::JSError(runtime, std::string("Error in initializeANPR: ") + e.what());
+    }
+  };
+
+  auto setTopN  = [](jsi::Runtime& runtime, const jsi::Value& thisArg, const jsi::Value* args, size_t count) -> jsi::Value {
+    try {
+      if (count < 1 || !args[0].isNumber()) {
+        LOGE("TopN value must be a number");
+        throw jsi::JSError(runtime, "TopN value must be a number");
+      }
+
+      int topN = args[0].asNumber();
+
+      if (g_openalprInstance) {
+        g_openalprInstance->setTopN(topN);
+      } else {
+        LOGE("OpenALPR not initialized");
+        throw jsi::JSError(runtime, "OpenALPR not initialized");
+      }
+
+      // JSI requires a return value - undefined to specify void
+      return jsi::Value::undefined();
+    } catch (const std::exception& e) {
+      LOGE("Error in setTopN: %s", e.what());
+      throw jsi::JSError(runtime, std::string("Error in setTopN: ") + e.what());
+    }
+  };
+
+  auto setCountry = [](jsi::Runtime& runtime, const jsi::Value& thisArg, const jsi::Value* args, size_t count) -> jsi::Value {
+    try {
+      if (count < 1 || !args[0].isString()) {
+        LOGE("Country value must be a string");
+        throw jsi::JSError(runtime, "Country value must be a string");
+      }
+
+      std::string country = args[0].getString(runtime).utf8(runtime);
+
+      if (g_openalprInstance) {
+        g_openalprInstance->setCountry(country);
+      } else {
+        LOGE("OpenALPR not initialized");
+        throw jsi::JSError(runtime, "OpenALPR not initialized");
+      }
+
+      return jsi::Value::undefined();
+    } catch (const std::exception& e) {
+      LOGE("Error in setCountry: %s", e.what());
+      throw jsi::JSError(runtime, std::string("Error in setCountry: ") + e.what());
+    }
+  };
+
+  auto setPrewarp = [](jsi::Runtime& runtime, const jsi::Value& thisArg, const jsi::Value* args, size_t count) -> jsi::Value {
+    try {
+      if (count < 1 || !args[0].isString()) {
+        LOGE("Prewarp value must be a string");
+        throw jsi::JSError(runtime, "Prewarp value must be a string");
+      }
+
+      std::string prewarpConfig = args[0].getString(runtime).utf8(runtime);
+
+      if (g_openalprInstance) {
+        g_openalprInstance->setPrewarp(prewarpConfig);
+      } else {
+        LOGE("OpenALPR not initialized");
+        throw jsi::JSError(runtime, "OpenALPR not initialized");
+      }
+
+      return jsi::Value::undefined();
+    } catch (const std::exception& e) {
+      LOGE("Error in setPrewarp: %s", e.what());
+      throw jsi::JSError(runtime, std::string("Error in setPrewarp: ") + e.what());
+    }
+  };
+
+  auto setMask = [](jsi::Runtime& runtime, const jsi::Value& thisArg, const jsi::Value* args, size_t count) -> jsi::Value {
+    try {
+      if (count < 4 || !args[0].isObject() || !args[1].isNumber() || !args[2].isNumber() || !args[3].isNumber()) {
+        LOGE("Invalid arguments for setMask");
+        throw jsi::JSError(runtime, "Invalid arguments for setMask");
+      }
+
+      uint8_t* pixelData = getPixelData(runtime, args[0]);
+      int bytesPerPixel = args[1].asNumber();
+      int imgWidth = args[2].asNumber();
+      int imgHeight = args[3].asNumber();
+
+      if (g_openalprInstance) {
+        g_openalprInstance->setMask(pixelData, bytesPerPixel, imgWidth, imgHeight);
+      } else {
+        LOGE("OpenALPR not initialized");
+        throw jsi::JSError(runtime, "OpenALPR not initialized");
+      }
+
+      return jsi::Value::undefined();
+    } catch (const std::exception& e) {
+      LOGE("Error in setMask: %s", e.what());
+      throw jsi::JSError(runtime, std::string("Error in setMask: ") + e.what());
+    }
+  };
+
+  auto setDetectRegion = [](jsi::Runtime& runtime, const jsi::Value& thisArg, const jsi::Value* args, size_t count) -> jsi::Value {
+    try {
+      if (count < 1 || !args[0].isBool()) {
+        LOGE("DetectRegion value must be a boolean");
+        throw jsi::JSError(runtime, "DetectRegion value must be a boolean");
+      }
+
+      bool detectRegion = args[0].getBool();
+
+      if (g_openalprInstance) {
+        g_openalprInstance->setDetectRegion(detectRegion);
+      } else {
+        LOGE("OpenALPR not initialized");
+        throw jsi::JSError(runtime, "OpenALPR not initialized");
+      }
+
+      return jsi::Value::undefined();
+    } catch (const std::exception& e) {
+      LOGE("Error in setDetectRegion: %s", e.what());
+      throw jsi::JSError(runtime, std::string("Error in setDetectRegion: ") + e.what());
+    }
+  };
+
+  auto setDefaultRegion = [](jsi::Runtime& runtime, const jsi::Value& thisArg, const jsi::Value* args, size_t count) -> jsi::Value {
+    try {
+      if (count < 1 || !args[0].isString()) {
+        LOGE("DefaultRegion value must be a string");
+        throw jsi::JSError(runtime, "DefaultRegion value must be a string");
+      }
+
+      std::string region = args[0].getString(runtime).utf8(runtime);
+
+      if (g_openalprInstance) {
+        g_openalprInstance->setDefaultRegion(region);
+      } else {
+        LOGE("OpenALPR not initialized");
+        throw jsi::JSError(runtime, "OpenALPR not initialized");
+      }
+
+      return jsi::Value::undefined();
+    } catch (const std::exception& e) {
+      LOGE("Error in setDefaultRegion: %s", e.what());
+      throw jsi::JSError(runtime, std::string("Error in setDefaultRegion: ") + e.what());
+    }
+  };
+
   auto recogniseFrame = [](jsi::Runtime& runtime, const jsi::Value& thisArg, const jsi::Value* args, size_t count) -> jsi::Value {
     try {
       if (count < 1 || !args[0].isObject()) {
@@ -100,22 +289,12 @@ namespace visioncamerapluginanpr {
     }
   };
 
-  auto initializeANPR  = [](jsi::Runtime& runtime, const jsi::Value& thisArg, const jsi::Value* args, size_t count) -> jsi::Value {
-    try {
-      if (count < 1 || !args[0].isString()) {
-        LOGE("Invalid arguments");
-        throw jsi::JSError(runtime, "Invalid arguments");
-      }
-      std::string country = args[0].getString(runtime).utf8(runtime);
-      initializeOpenALPR(country);
+  using JSIHostFunction = std::function<jsi::Value(jsi::Runtime&, const jsi::Value&, const jsi::Value*, size_t)>;
 
-      // JSI requires a return value - undefined to specify void
-      return jsi::Value::undefined();
-    } catch (const std::exception& e) {
-      LOGE("Error in initializeANPR: %s", e.what());
-      throw jsi::JSError(runtime, std::string("Error in initializeANPR: ") + e.what());
-    }
-  };
+  void addPluginFunction(jsi::Runtime& runtime, const std::string& funcName, JSIHostFunction func) {
+    auto pluginFunc = jsi::Function::createFromHostFunction(runtime, jsi::PropNameID::forUtf8(runtime, funcName), 1, func);
+    runtime.global().setProperty(runtime, jsi::PropNameID::forUtf8(runtime, funcName), pluginFunc);
+  }
 
   void installPlugin(jsi::Runtime& runtime) {
     bool isInstalled = runtime.global().hasProperty(runtime, "initializeANPR");
@@ -128,14 +307,29 @@ namespace visioncamerapluginanpr {
     LOGI("Installing plugin...");
 
     // Add initializeANPR
-    auto initializeANPRFunc = jsi::Function::createFromHostFunction(runtime, jsi::PropNameID::forUtf8(runtime, "initializeANPR"), 1, initializeANPR);
+    addPluginFunction(runtime, "initializeANPR", initializeANPR);
 
-    runtime.global().setProperty(runtime, "initializeANPR", initializeANPRFunc);
+    // Add setTopN
+    addPluginFunction(runtime, "setTopN", setTopN);
+
+    // Add setCountry
+    addPluginFunction(runtime, "setCountry", setCountry);
+
+    // Add setPrewarp
+    addPluginFunction(runtime, "setPrewarp", setPrewarp);
+
+    // Add setMask
+    addPluginFunction(runtime, "setMask", setMask);
+
+    // Add setDetectRegion
+    addPluginFunction(runtime, "setDetectRegion", setDetectRegion);
+
+    // Add setDefaultRegion
+    addPluginFunction(runtime, "setDefaultRegion", setDefaultRegion);
 
     // Add recogniseFrame
-    auto recogniseFrameFunc = jsi::Function::createFromHostFunction(runtime, jsi::PropNameID::forUtf8(runtime, "recogniseFrame"), 1, recogniseFrame);
+    addPluginFunction(runtime, "recogniseFrame", recogniseFrame);
 
-    runtime.global().setProperty(runtime, "recogniseFrame", recogniseFrameFunc);
     LOGI("Plugin installation complete");
   }
 }
