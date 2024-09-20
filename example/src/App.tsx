@@ -1,70 +1,25 @@
-import { StyleSheet, View, Text } from 'react-native';
-import { useALPR } from 'vision-camera-plugin-anpr';
-import {
-  Camera,
-  useCameraPermission,
-  useCameraDevice,
-  useFrameProcessor,
-  runAsync,
-} from 'react-native-vision-camera';
-import { useEffect } from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { HomeScreen } from './screens/HomeScreen';
+import { RealTimeScanScreen } from './screens/RealTimeScanScreen';
+import { RealTimeRecogniseScreen } from './screens/RealTimeRecogniseScreen';
+import { ChooseFileScreen } from './screens/ChooseFileScreen';
+import type { RootStackParamList } from './types/navigation';
+
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
-  const { hasPermission, requestPermission } = useCameraPermission();
-  const device = useCameraDevice('back');
-  const {
-    recogniseFrame,
-    setTopN,
-    setCountry,
-    setDefaultRegion,
-    setDetectRegion,
-    setPrewarp,
-  } = useALPR();
-
-  useEffect(() => {
-    if (!hasPermission) {
-      requestPermission();
-    }
-    setTopN(5);
-    setCountry('eu');
-    setDefaultRegion('za');
-    setDetectRegion(false);
-    setPrewarp('planar,1280,720,0.8,0,0,0,0');
-  }, [hasPermission, requestPermission]);
-
-  const frameProcessor = useFrameProcessor((frame) => {
-    'worklet';
-    runAsync(frame, () => {
-      'worklet';
-      console.log(JSON.parse(recogniseFrame(frame)));
-    });
-  }, []);
-
-  if (device == null)
-    return (
-      <View style={styles.container}>
-        <Text>No device</Text>
-      </View>
-    );
   return (
-    <Camera
-      style={StyleSheet.absoluteFill}
-      device={device}
-      isActive={true}
-      frameProcessor={frameProcessor}
-    />
+    <NavigationContainer>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="RealTimeScan" component={RealTimeScanScreen} />
+        <Stack.Screen
+          name="RealTimeRecognise"
+          component={RealTimeRecogniseScreen}
+        />
+        <Stack.Screen name="ChooseFile" component={ChooseFileScreen} />
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  box: {
-    width: 60,
-    height: 60,
-    marginVertical: 20,
-  },
-});
