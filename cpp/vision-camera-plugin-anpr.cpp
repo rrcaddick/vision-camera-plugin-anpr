@@ -268,6 +268,60 @@ namespace visioncamerapluginanpr {
     }
   };
 
+  auto recognise = [](jsi::Runtime& runtime, const jsi::Value& thisArg, const jsi::Value* args, size_t count) -> jsi::Value {
+      try {
+          if (!g_openalprInstance) {
+              throw jsi::JSError(runtime, "OpenALPR not initialized");
+          }
+
+          // Case 1: Recognize from file path
+          if (count == 1 && args[0].isString()) {
+              std::string filePath = args[0].getString(runtime).utf8(runtime);
+              AlprResults results = g_openalprInstance->recognize(filePath);
+              return jsi::String::createFromUtf8(runtime, Alpr::toJson(results));
+          }
+
+          // Case 2: Recognize from image bytes
+          if (count == 1 && args[0].isObject() && args[0].asObject(runtime).isArrayBuffer(runtime)) {
+              auto arrayBuffer = args[0].asObject(runtime).getArrayBuffer(runtime);
+              std::vector<char> imageBytes(static_cast<char*>(arrayBuffer.data(runtime)), 
+                                          static_cast<char*>(arrayBuffer.data(runtime)) + arrayBuffer.size(runtime));
+              AlprResults results = g_openalprInstance->recognize(imageBytes);
+              return jsi::String::createFromUtf8(runtime, Alpr::toJson(results));
+          }
+
+          // Case 3: Recognize from image bytes with regions of interest
+          if (count == 2 && args[0].isObject() && args[0].asObject(runtime).isArrayBuffer(runtime) && 
+              args[1].isObject() && args[1].asObject(runtime).isArray(runtime)) {
+              auto arrayBuffer = args[0].asObject(runtime).getArrayBuffer(runtime);
+              std::vector<char> imageBytes(static_cast<char*>(arrayBuffer.data(runtime)), 
+                                          static_cast<char*>(arrayBuffer.data(runtime)) + arrayBuffer.size(runtime));
+              std::vector<AlprRegionOfInterest> regionsOfInterest = parseRegionsOfInterest(runtime, args[1]);
+              AlprResults results = g_openalprInstance->recognize(imageBytes, regionsOfInterest);
+              return jsi::String::createFromUtf8(runtime, Alpr::toJson(results));
+          }
+
+          // Case 4: Recognize from raw pixel data
+          if (count == 4 && args[0].isObject() && args[0].asObject(runtime).isArrayBuffer(runtime) && 
+              args[1].isNumber() && args[2].isNumber() && args[3].isObject() && args[3].asObject(runtime).isArray(runtime)) {
+              unsigned char* pixelData = getPixelData(runtime, args[0]);
+              int imgWidth = args[1].asNumber();
+              int imgHeight = args[2].asNumber();
+              std::vector<AlprRegionOfInterest> regionsOfInterest = parseRegionsOfInterest(runtime, args[3]);
+              
+              // Assuming 3 bytes per pixel (RGB)
+              AlprResults results = g_openalprInstance->recognize(pixelData, 3, imgWidth, imgHeight, regionsOfInterest);
+              return jsi::String::createFromUtf8(runtime, Alpr::toJson(results));
+          }
+
+          // If we reach here, the arguments didn't match any expected pattern
+          throw jsi::JSError(runtime, "Invalid arguments for recognise");
+      } catch (const std::exception& e) {
+          LOGE("Error in recognise: %s", e.what());
+          throw jsi::JSError(runtime, std::string("Error in recognise: ") + e.what());
+      }
+  };
+
   auto recogniseFrame = [](jsi::Runtime& runtime, const jsi::Value& thisArg, const jsi::Value* args, size_t count) -> jsi::Value {
     try {
       if (count < 1 || !args[0].isObject()) {

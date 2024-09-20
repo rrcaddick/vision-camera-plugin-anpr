@@ -139,7 +139,7 @@ export class ALPRService {
     arg3?: number,
     arg4?: AlprRegionOfInterest[]
   ): Promise<string> {
-    return this.queueOrExecuteAsync(() => {
+    return this.queueOrExecuteAsync<string>(() => {
       if (!global.recognise) {
         throw new Error('OpenALPR is not initialized');
       }
