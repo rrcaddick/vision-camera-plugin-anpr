@@ -26,13 +26,13 @@ declare global {
   function setTopN(topN: number): void;
   function setDefaultRegion(region: string): void;
   function recognise(filePath: string): string;
-  function recognise(imgBytes: Uint8Array): string;
+  function recognise(imgBytes: ArrayBuffer): string;
   function recognise(
-    imageBytes: Uint8Array,
+    imageBytes: ArrayBuffer,
     regionsOfInterest: AlprRegionOfInterest[]
   ): string;
   function recognise(
-    pixelData: Uint8Array,
+    pixelData: ArrayBuffer,
     imgWidth: number,
     imgHeight: number,
     regionsOfInterest: AlprRegionOfInterest[]

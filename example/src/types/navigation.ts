@@ -2,5 +2,5 @@ export type RootStackParamList = {
   Home: undefined;
   RealTimeScan: undefined;
   RealTimeRecognise: undefined;
-  ChooseFile: undefined;
+  ChooseFile: { imagePath: string; results: string };
 };

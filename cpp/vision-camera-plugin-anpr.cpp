@@ -9,6 +9,11 @@
 #include <android/hardware_buffer.h>
 #include <jni.h>
 
+#include <fstream>
+#include <vector>
+#include <cerrno>
+#include <cstring>
+
 #define LOG_TAG "ReactNative"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
@@ -269,6 +274,7 @@ namespace visioncamerapluginanpr {
   };
 
   auto recognise = [](jsi::Runtime& runtime, const jsi::Value& thisArg, const jsi::Value* args, size_t count) -> jsi::Value {
+      LOGI("Starting ALPR recognition");
       try {
           if (!g_openalprInstance) {
               throw jsi::JSError(runtime, "OpenALPR not initialized");
@@ -277,19 +283,44 @@ namespace visioncamerapluginanpr {
           // Case 1: Recognize from file path
           if (count == 1 && args[0].isString()) {
               std::string filePath = args[0].getString(runtime).utf8(runtime);
-              alpr::AlprResults results = g_openalprInstance->recognize(filePath);
-              return jsi::String::createFromUtf8(runtime, alpr::Alpr::toJson(results));
+
+              // TODO: Fix the fact that the openalpr recognize method only works if I manually open the file first
+              std::ifstream file(filePath);
+              file.close();
+
+              // Proceed with ALPR recognition
+              try {
+                  alpr::AlprResults results = g_openalprInstance->recognize(filePath);
+                  LOGI("ALPR recognition completed");
+                  return jsi::String::createFromUtf8(runtime, alpr::Alpr::toJson(results));
+              } catch (const std::exception& e) {
+                  LOGE("Exception during ALPR recognition: %s", e.what());
+                  return jsi::String::createFromUtf8(runtime, std::string("Error during recognition: ") + e.what());
+              }
           }
 
-          // // Case 2: Recognize from image bytes
-          // if (count == 1 && args[0].isObject() && args[0].asObject(runtime).isArrayBuffer(runtime)) {
-          //     auto arrayBuffer = args[0].asObject(runtime).getArrayBuffer(runtime);
-          //     std::vector<char> imageBytes(static_cast<char*>(arrayBuffer.data(runtime)), 
-          //                                 static_cast<char*>(arrayBuffer.data(runtime)) + arrayBuffer.size(runtime));
-          //     alpr::AlprResults results = g_openalprInstance->recognize(imageBytes);
-          //     return jsi::String::createFromUtf8(runtime, alpr::Alpr::toJson(results));
-          // }
+          // Case 2: Recognize from image bytes
+          if (count == 1 && args[0].isObject() && args[0].asObject(runtime).isArrayBuffer(runtime)) {
+            LOGI("Starting ALPR recognition with image bytes");
+            try {  
+              jsi::ArrayBuffer arrayBuffer = args[0].asObject(runtime).getArrayBuffer(runtime);
+              jsi::Value byteLengthValue = args[0].asObject(runtime).getProperty(runtime, "byteLength");
+              size_t byteLength = byteLengthValue.asNumber();
 
+              // Get the pointer to the data in the ArrayBuffer
+              const uint8_t *data = arrayBuffer.data(runtime);
+
+              // Create a std::vector<char> and fill it with the bytes from the ArrayBuffer
+              std::vector<char> imageBytes(data, data + byteLength);
+
+              alpr::AlprResults results = g_openalprInstance->recognize(imageBytes);
+              return jsi::String::createFromUtf8(runtime, alpr::Alpr::toJson(results));
+            } catch (const std::exception& e) {
+              LOGE("Exception during ALPR recognition: %s", e.what());
+              return jsi::String::createFromUtf8(runtime, std::string("Error during recognition: ") + e.what());
+            }
+          }
+ 
           // // Case 3: Recognize from image bytes with regions of interest
           // if (count == 2 && args[0].isObject() && args[0].asObject(runtime).isArrayBuffer(runtime) && 
           //     args[1].isObject() && args[1].asObject(runtime).isArray(runtime)) {
@@ -315,6 +346,8 @@ namespace visioncamerapluginanpr {
           // }
 
           // If we reach here, the arguments didn't match any expected pattern
+
+          LOGI("No matching arguments");
           throw jsi::JSError(runtime, "Invalid arguments for recognise");
       } catch (const std::exception& e) {
           LOGE("Error in recognise: %s", e.what());
@@ -380,6 +413,9 @@ namespace visioncamerapluginanpr {
 
     // Add setDefaultRegion
     addPluginFunction(runtime, "setDefaultRegion", setDefaultRegion);
+
+    // Add recognise
+    addPluginFunction(runtime, "recognise", recognise);
 
     // Add recogniseFrame
     addPluginFunction(runtime, "recogniseFrame", recogniseFrame);

@@ -122,19 +122,19 @@ export class ALPRService {
 
   // Keeping recognise methods unchanged
   async recognise(filePath: string): Promise<string>;
-  async recognise(imgBytes: Uint8Array): Promise<string>;
+  async recognise(imgBytes: ArrayBuffer): Promise<string>;
   async recognise(
-    imageBytes: Uint8Array,
+    imageBytes: ArrayBuffer,
     regionsOfInterest: AlprRegionOfInterest[]
   ): Promise<string>;
   async recognise(
-    pixelData: Uint8Array,
+    pixelData: ArrayBuffer,
     imgWidth: number,
     imgHeight: number,
     regionsOfInterest: AlprRegionOfInterest[]
   ): Promise<string>;
   async recognise(
-    arg1: string | Uint8Array,
+    arg1: string | ArrayBuffer,
     arg2?: AlprRegionOfInterest[] | number,
     arg3?: number,
     arg4?: AlprRegionOfInterest[]
@@ -152,14 +152,14 @@ export class ALPRService {
       }
 
       // Recognise from image bytes (simple byte array)
-      if (arg1 instanceof Uint8Array && typeof arg2 === 'undefined') {
+      if (arg1 instanceof ArrayBuffer && typeof arg2 === 'undefined') {
         if (global.recognise) {
           return global.recognise(arg1);
         }
       }
 
       // Recognise from image bytes with regions of interest
-      if (arg1 instanceof Uint8Array && Array.isArray(arg2)) {
+      if (arg1 instanceof ArrayBuffer && Array.isArray(arg2)) {
         if (global.recognise) {
           return global.recognise(arg1, arg2 as AlprRegionOfInterest[]);
         }
@@ -167,7 +167,7 @@ export class ALPRService {
 
       // Recognise from raw pixel data
       if (
-        arg1 instanceof Uint8Array &&
+        arg1 instanceof ArrayBuffer &&
         typeof arg2 === 'number' &&
         typeof arg3 === 'number' &&
         Array.isArray(arg4)
